@@ -1,0 +1,104 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  email          String   @unique
+  password       String
+  role           String   @default("buyer") // buyer/seller - a user can be both
+  rollNumber     String?  // Student roll number
+  profilePicture String?
+  phone          String?
+  college        String?
+  createdAt      DateTime @default(now())
+
+  itemsAsSeller     Item[]       @relation("SellerItems")
+  bids              Bid[]        @relation("UserBids")
+  watchlist         Watchlist[]
+  settlementsAsSeller Settlement[] @relation("SellerSettlements")
+  settlementsAsBuyer  Settlement[] @relation("BuyerSettlements")
+}
+
+model Item {
+  id                       String   @id @default(auto()) @map("_id") @db.ObjectId
+  title                    String
+  description              String
+  category                 String   // books/calculators/cycles/other
+  images                   String[]
+  condition                String
+  sellerId                 String   @db.ObjectId
+  originalBuyingPrice      Float?   // Original price when seller bought it
+  usageTime                String?  // Usage duration (e.g., "6 months", "1 year")
+  startingPrice            Float    // Seller's requirement/minimum price
+  currentHighestBid        Float    @default(0)
+  currentHighestBidderId   String?  @db.ObjectId
+  startTime                DateTime
+  endTime                  DateTime
+  status                   String   @default("upcoming") // upcoming/live/ended/settled/unsold
+  bidIncrementMin          Float    @default(1)
+  antiSnipeWindowSeconds   Int      @default(30)
+  antiSnipeExtensionSeconds Int     @default(60)
+  createdAt                DateTime @default(now())
+  
+  seller       User         @relation("SellerItems", fields: [sellerId], references: [id])
+  bids         Bid[]
+  watchlist    Watchlist[]
+  settlement   Settlement?
+}
+
+model Bid {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  itemId     String   @db.ObjectId
+  bidderId   String   @db.ObjectId
+  amount     Float
+  timestamp  DateTime @default(now())
+  isWinning  Boolean  @default(false)
+  
+  item   Item @relation(fields: [itemId], references: [id])
+  bidder User @relation("UserBids", fields: [bidderId], references: [id])
+  
+  @@index([itemId])
+  @@index([bidderId])
+}
+
+model Watchlist {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  itemId    String   @db.ObjectId
+  addedAt   DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id])
+  item Item @relation(fields: [itemId], references: [id])
+  
+  @@unique([userId, itemId])
+  @@index([userId])
+  @@index([itemId])
+}
+
+model Settlement {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  itemId      String   @unique @db.ObjectId
+  sellerId    String   @db.ObjectId
+  buyerId     String   @db.ObjectId
+  finalPrice  Float
+  status      String   @default("pending_pickup") // pending_pickup/paid/completed
+  notes       String?
+  createdAt   DateTime @default(now())
+  
+  item   Item @relation(fields: [itemId], references: [id])
+  seller User @relation("SellerSettlements", fields: [sellerId], references: [id])
+  buyer  User @relation("BuyerSettlements", fields: [buyerId], references: [id])
+}
