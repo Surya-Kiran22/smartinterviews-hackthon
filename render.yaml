@@ -4,8 +4,8 @@ services:
     env: node
     plan: free
     rootDir: server
-    buildCommand: cd server && npm install && npx prisma generate
-    startCommand: cd server && npm start
+    buildCommand: npm install && npx prisma generate
+    startCommand: npm start
     envVars:
       - key: DATABASE_URL
         sync: false
